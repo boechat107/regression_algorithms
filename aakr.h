@@ -17,14 +17,13 @@ struct Signals_node
 {
     double* data;
     int index;
-    struct Signals_node* next;
 };
 
 struct Signals_matrix
 {
     int nvars;
     int nvectors;
-    struct Signals_node* head;
+    struct Signals_node* vectors;
 };
 
 typedef struct Signals_matrix Signals_matrix;

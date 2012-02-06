@@ -15,7 +15,7 @@ aakr.o: aakr.c aakr.h
 	$(CXX) $(CFLAGS) -c aakr.c 
 
 clean:
-	rm -f aakr.o
+	rm -f aakr.o aakr-predict
 
 mem:
 	valgrind --leak-check=yes ./aakr-predict input.txt
