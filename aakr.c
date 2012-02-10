@@ -136,81 +136,56 @@ memory_vector_selection (Signals_matrix* train_data, int num_vectors)
      * the minimum and maximum values of each variable are selected. */
     int num_bands = (int)floor(((float)num_vectors) / ((float)(2*train_data->nvars)));
     int band_size = (int)floor(((float)train_data->nvectors) / ((float)num_bands));
-    /* Values of the variables where one is the maximum (minimum) of a variable. Although
-     * only one variable is analysed, the entire data vector is stored for the ouput
-     * structure, the memory. */
-    double *minValues,
-           *maxValues;
-    /* The respective indexes of the array of maximum (minimum) values. */
-    int minIndex = -1,
-        maxIndex = -1;
-    /* Pointer to iterate on the training data. */
-    Signals_node *matrix_vec;
-    /* A marker to reduce the number of memory vector that must be analysed to remove
-     * duplicated entries. Just the nodes starting at this pointer are analysed. */
-    int first_band_memory = -1;
-    /* Flags to indicate if the selected training vector is duplicated. */
-    char flag_max = 'y';
-    char flag_min = 'y';
     for (band = 0; band < num_bands; band++)
     {
         for (var = 0; var < train_data->nvars; var++)
         {
-            minValues = MALLOC(double,train_data->nvars);
-            maxValues = MALLOC(double,train_data->nvars);
-            initMinArrays(minValues, train_data->nvars);
-            initMaxArrays(maxValues, train_data->nvars);
+            double maxValue = -1e10,
+                   minValue = 1e10;
+            /* The respective indexes of the array of maximum (minimum) values. */
+            int minIndex = -1,
+                maxIndex = -1;
             /* Loop to search the maximum (minimum) vector. */
             for (vec = band*band_size; vec < (band+1)*band_size; vec++)
             {
-                matrix_vec = &train_data->vectors[vec];
-                if (matrix_vec->data[var] > maxValues[var])
+                if (train_data->vectors[vec].data[var] > maxValue)
                 {
-                    copyDoubleValues(matrix_vec->data, maxValues, train_data->nvars);
-                    maxIndex = matrix_vec->index;
+                    maxValue = train_data->vectors[vec].data[var];
+                    maxIndex = vec;
                 }
-                if (matrix_vec->data[var] < minValues[var])
+                if (train_data->vectors[vec].data[var] < minValue)
                 {
-                    copyDoubleValues(matrix_vec->data, minValues, train_data->nvars);
-                    minIndex = matrix_vec->index;
+                    minValue = train_data->vectors[vec].data[var];
+                    minIndex = vec;
                 }
-            }
-            /* Duplicated entries verification. */
-            for (vec = first_band_memory; vec < memory->nvectors; vec++)
-            {
-                /* If the maxIndex or minIndex already have occurred, the flag is set to
-                 * 'n' and the vectors must not be included in the memory again. */
-                if (memory->vectors[vec].index == maxIndex)
-                    flag_max = 'n';
-                if (memory->vectors[vec].index == minIndex)
-                    flag_min = 'n';
             }
             /* Vectors with maximum values are added to the memory list, or not. */
-            if (flag_max == 'y')
+            if (selected_vectors[maxIndex] == 'n')
             {
                 selected_vectors[maxIndex] = 'y';
-                matrix_vec = &memory->vectors[memory->nvectors];
-                matrix_vec->data = maxValues;
-                matrix_vec->index = maxIndex;
+                double *data = MALLOC(double,train_data->nvars);
+                copyDoubleValues(
+                        train_data->vectors[maxIndex].data,
+                        data,
+                        train_data->nvars);
+                memory->vectors[memory->nvectors].data = data;
+                memory->vectors[memory->nvectors].index = maxIndex;
                 memory->nvectors++;
             }
-            else
-                free(maxValues);
             /* Vectors with minimum values are added to the memory list, or not. */
-            if (flag_min == 'y' && minIndex != maxIndex)
+            if (selected_vectors[minIndex] == 'n')
             {
                 selected_vectors[minIndex] = 'y';
-                matrix_vec = &memory->vectors[memory->nvectors];
-                matrix_vec->data = minValues;
-                matrix_vec->index = minIndex;
+                double *data = MALLOC(double,train_data->nvars);
+                copyDoubleValues(
+                        train_data->vectors[minIndex].data,
+                        data,
+                        train_data->nvars);
+                memory->vectors[memory->nvectors].data = data;
+                memory->vectors[memory->nvectors].index = minIndex;
                 memory->nvectors++;
             }
-            else
-                free(minValues);
-            flag_min = 'y';
-            flag_max = 'y';
         }
-        first_band_memory = memory->nvectors;
     }
     /* Normally, after the selection of the min-max vectors, the desired number of memory
      * vectors is not obtained. So, it is used the vector ordering method to obtain the
@@ -231,7 +206,7 @@ memory_vector_selection (Signals_matrix* train_data, int num_vectors)
             double norm = 0.0;
             /* Calculates the norm of the vector. */
             for (var = 0; var < train_data->nvars; var++)
-                norm += pow(matrix_vec->data[var], 2);
+                norm += pow(train_data->vectors[vec].data[var], 2);
             norm = sqrt(norm);
             norm_index[i].norm = norm;
             norm_index[i].index = vec;
