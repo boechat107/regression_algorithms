@@ -7,6 +7,8 @@
  *    Reference: 
  *    "Technical Review of On-Line Monitoring Techniques for Performance Assessment Vol.
  *    2: Theoretical Issues"
+ *
+ *    TODO: verify the necessity of the index in the Signals_node structure.
  */
 
 #ifndef AUTOASSOCIATIVE_KERNEL_REGRESSION_H
