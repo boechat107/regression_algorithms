@@ -102,7 +102,7 @@ main(int argc, const char *argv[])
         return 0;
     fclose(filep);
     Signals_matrix *memory = memory_vector_selection(matrix, 72);
-    print_signals_matrix(memory);
+//    print_signals_matrix(memory);
 
     free_signals_matrix(matrix);
     free_signals_matrix(memory);

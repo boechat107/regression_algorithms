@@ -51,6 +51,9 @@ copyDoubleValues (double* orig, double* dest, int size)
 }
 
 
+
+
+
 /* ----------------------------------------------------------------------------------------- 
  * Main functions
  * ----------------------------------------------------------------------------------------- 
@@ -113,14 +116,76 @@ struct _Norm
 };
 typedef struct _Norm _Norm;
 
-Signals_matrix*
-memory_vector_selection (Signals_matrix* train_data, int num_vectors)
+/**
+ * Partition function of the quicksort algorithm.
+ */
+static int
+partition (_Norm *array, int p, int r)
 {
-    if (num_vectors >= train_data->nvectors)
-        return train_data;
+    int index;
+    double norm;
+    _Norm *x = &array[r];
+    int i = p - 1;
+    for (int j = p; j < r; j++)
+    {
+        if (array[j].norm <= x->norm)
+        {
+            i++;
+            /* Exchange A[i] <-> A[j]. */
+            index = array[j].index;
+            norm = array[j].norm;
+            array[j].index = array[i].index;
+            array[j].norm = array[i].norm;
+            array[i].index = index;
+            array[i].norm = norm;
+        }
+    }
+    /* Exchange A[i+1] <-> A[r]. */
+    i++;
+    index = array[i].index;
+    norm = array[i].norm;
+    array[i].index = array[r].index;
+    array[i].norm = array[r].norm;
+    array[r].index = index;
+    array[r].norm = norm;
+    return i;
+}
+
+
+/**
+ *    Quicksort.
+ *    The array is sorted in the ascend order of norm.
+ */
+static void
+sort_by_norm (_Norm *array, int p, int r)
+{
+    if (p < r)
+    {
+        int q = partition(array, p, r);
+        sort_by_norm(array, p, q-1);
+        sort_by_norm(array, q+1, r);
+    }
+}
+
+void
+printNorm (_Norm *array, int size)
+{
+    for (int i = 0; i < size; i++)
+        printf("Index %d and Norm %f\n", array[i].index, array[i].norm);
+}
+/**
+ *    \brief brief description
+ *    \param Nome var description
+ *    \return Nome var description    
+ */
+Signals_matrix*
+memory_vector_selection (Signals_matrix* trainData, int num_vectors)
+{
+    if (num_vectors >= trainData->nvectors)
+        return trainData;
     /* Output variable initialization. */
     Signals_matrix* memory = MALLOC(Signals_matrix,1);
-    memory->nvars = train_data->nvars;
+    memory->nvars = trainData->nvars;
     memory->nvectors = 0;
     memory->vectors = MALLOC(Signals_node,num_vectors);
     /* Iterators on bands, vectors of the training data in the current band and the column
@@ -129,58 +194,61 @@ memory_vector_selection (Signals_matrix* train_data, int num_vectors)
     int vec;
     int var;
     /* Just a table to mark the training vectors that were selected to the memory list. */
-    char selected_vectors[train_data->nvectors];
-    for (vec = 0; vec < train_data->nvectors; vec++) 
+    char selected_vectors[trainData->nvectors];
+    for (vec = 0; vec < trainData->nvectors; vec++) 
         selected_vectors[vec] = 'n';
     /* The training data is divided in a num_bands parts. On each part, the vectors with
      * the minimum and maximum values of each variable are selected. */
-    int num_bands = (int)floor(((float)num_vectors) / ((float)(2*train_data->nvars)));
-    int band_size = (int)floor(((float)train_data->nvectors) / ((float)num_bands));
+    int num_bands = (int)floor(((float)num_vectors) / ((float)(2*trainData->nvars)));
+    int band_size = (int)floor(((float)trainData->nvectors) / ((float)num_bands));
     for (band = 0; band < num_bands; band++)
     {
-        for (var = 0; var < train_data->nvars; var++)
+        for (var = 0; var < trainData->nvars; var++)
         {
             double maxValue = -1e10,
                    minValue = 1e10;
             /* The respective indexes of the array of maximum (minimum) values. */
             int minIndex = -1,
                 maxIndex = -1;
-            /* Loop to search the maximum (minimum) vector. */
+            /* Loop to search the maximum (minimum) vector. The index of the maximal
+             * (minimal) vector is saved. */
             for (vec = band*band_size; vec < (band+1)*band_size; vec++)
             {
-                if (train_data->vectors[vec].data[var] > maxValue)
+                if (trainData->vectors[vec].data[var] > maxValue)
                 {
-                    maxValue = train_data->vectors[vec].data[var];
+                    maxValue = trainData->vectors[vec].data[var];
                     maxIndex = vec;
                 }
-                if (train_data->vectors[vec].data[var] < minValue)
+                if (trainData->vectors[vec].data[var] < minValue)
                 {
-                    minValue = train_data->vectors[vec].data[var];
+                    minValue = trainData->vectors[vec].data[var];
                     minIndex = vec;
                 }
             }
-            /* Vectors with maximum values are added to the memory list, or not. */
+            /* Here it's verified occurrences of duplicated entries in memory. Every time
+             * that a vector is selected for memory, its index is marked as used. So,
+             * before adding the vector to the memory, a list of marked vectors is
+             * analysed. */
             if (selected_vectors[maxIndex] == 'n')
             {
                 selected_vectors[maxIndex] = 'y';
-                double *data = MALLOC(double,train_data->nvars);
+                double *data = MALLOC(double,trainData->nvars);
                 copyDoubleValues(
-                        train_data->vectors[maxIndex].data,
+                        trainData->vectors[maxIndex].data,
                         data,
-                        train_data->nvars);
+                        trainData->nvars);
                 memory->vectors[memory->nvectors].data = data;
                 memory->vectors[memory->nvectors].index = maxIndex;
                 memory->nvectors++;
             }
-            /* Vectors with minimum values are added to the memory list, or not. */
             if (selected_vectors[minIndex] == 'n')
             {
                 selected_vectors[minIndex] = 'y';
-                double *data = MALLOC(double,train_data->nvars);
+                double *data = MALLOC(double,trainData->nvars);
                 copyDoubleValues(
-                        train_data->vectors[minIndex].data,
+                        trainData->vectors[minIndex].data,
                         data,
-                        train_data->nvars);
+                        trainData->nvars);
                 memory->vectors[memory->nvectors].data = data;
                 memory->vectors[memory->nvectors].index = minIndex;
                 memory->nvectors++;
@@ -190,23 +258,23 @@ memory_vector_selection (Signals_matrix* train_data, int num_vectors)
     /* Normally, after the selection of the min-max vectors, the desired number of memory
      * vectors is not obtained. So, it is used the vector ordering method to obtain the
      * rest of memory vectors. */
-    int nMissingVectors = memory->nvectors - num_vectors;
+    int nMissingVectors = num_vectors - memory->nvectors;
     if (nMissingVectors > 0)
     {
-        int normArraySize = train_data->nvectors - memory->nvectors;
+        int normArraySize = trainData->nvectors - memory->nvectors;
         _Norm norm_index[normArraySize];
         /* A array of the vector norm values are created. Just the vectors that were not
          * added to the memory are analysed. After that, this array must be
          * sorted in a ascend order of norm. */
         int i = 0;
-        for (vec = 0; vec < train_data->nvectors; vec++)
+        for (vec = 0; vec < trainData->nvectors; vec++)
         {
             if (selected_vectors[vec] == 'y')
                 continue;
             double norm = 0.0;
             /* Calculates the norm of the vector. */
-            for (var = 0; var < train_data->nvars; var++)
-                norm += pow(train_data->vectors[vec].data[var], 2);
+            for (var = 0; var < trainData->nvars; var++)
+                norm += pow(trainData->vectors[vec].data[var], 2);
             norm = sqrt(norm);
             norm_index[i].norm = norm;
             norm_index[i].index = vec;
@@ -214,16 +282,21 @@ memory_vector_selection (Signals_matrix* train_data, int num_vectors)
         }
         assert(i == normArraySize);
         /* Sorts the array of norm values in ascend order. */
-//        sort_by_norm(norm_index, normArraySize);
+//        printNorm(norm_index, normArraySize);
+//        printf("\n\n");
+        sort_by_norm(norm_index, 0, normArraySize-1);
+//        printNorm(norm_index, normArraySize);
         int partitionSize = normArraySize / nMissingVectors;
         for (vec = 0; memory->nvectors < num_vectors; vec += partitionSize)
         {
             selected_vectors[norm_index[vec].index] = 'y';
-            memory->vectors[memory->nvectors].index = norm_index[vec].index;
+            double *data = MALLOC(double,trainData->nvars);
             copyDoubleValues(
-                    train_data->vectors[norm_index[vec].index].data,
-                    memory->vectors[memory->nvectors].data,
-                    train_data->nvars);
+                    trainData->vectors[norm_index[vec].index].data,
+                    data,
+                    trainData->nvars);
+            memory->vectors[memory->nvectors].data = data;
+            memory->vectors[memory->nvectors].index = norm_index[vec].index;
             memory->nvectors++;
         }
     }
