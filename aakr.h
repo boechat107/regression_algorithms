@@ -32,8 +32,19 @@ typedef struct Signals_matrix Signals_matrix;
 typedef struct Signals_node Signals_node;
 
 
-double*
-aakr_prediction (Signals_matrix* memory, double bandwidth, double* query);
+/**
+ *    \brief Creates and initialize a Signals_matrix structure.
+ *    \param nvars Number of variables.
+ *    \param nvectors Number of variables observations or samples.
+ *    \return Returns a initialized Signals_matrix structure, where nvectors value is
+ *    equal to zero (no one of Signals_node has data) and a array of Signals_node with
+ *    size equal to nvectors (input parameter) is already alocated.    
+ */
+Signals_matrix *
+signals_matrix_init (int nvars, int nvectors);
+
+void
+aakr_prediction (Signals_matrix* memory, double bandwidth, double* query, double *output);
 
 
 Signals_matrix*

@@ -18,7 +18,7 @@ clean:
 	rm -f aakr.o aakr-predict
 
 mem:
-	valgrind --leak-check=yes ./aakr-predict input.txt
+	valgrind --leak-check=yes ./aakr-predict train.data test.data
 
 #svm-predict: svm-predict.c svm.o
 #	$(CXX) $(CFLAGS) svm-predict.c svm.o -o svm-predict -lm

@@ -1,5 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
+#include <math.h>
+#include <assert.h>
 #include "aakr.h"
 
 #define MALLOC(type,n) (type*)malloc(n*sizeof(type))
@@ -75,6 +77,55 @@ read_data_file (FILE *filep)
 }
 
 
+Signals_matrix *
+scale_data (Signals_matrix *input, double *mean, double *std)
+{
+    Signals_matrix *output = signals_matrix_init(input->nvars, input->nvectors);
+    output->nvectors = input->nvectors;
+    for (int vec = 0; vec < input->nvectors; vec++)
+    {
+        output->vectors[vec].data = MALLOC(double,output->nvars);
+        for (int var = 0; var < input->nvars; var++)
+        {
+            output->vectors[vec].data[var] = (input->vectors[vec].data[var] - mean[var])
+                / std[var];
+        }
+    }
+    return output;
+}
+
+double **
+calculate_mean_std (Signals_matrix *input)
+{
+    double **output = MALLOC(double *,2);
+    output[0] = MALLOC(double, input->nvars);
+    output[1] = MALLOC(double, input->nvars);
+    for (int i = 0; i < input->nvars; i++)
+    {
+        output[0][i] = 0.0;
+        output[1][i] = 0.0;
+    }
+    for (int vec = 0; vec < input->nvectors; vec++)
+    {
+        for (int var = 0; var < input->nvars; var++)
+        {
+            output[0][var] += input->vectors[vec].data[var];
+            output[1][var] += pow(input->vectors[vec].data[var], 2);
+        }
+    }
+    for (int var = 0; var < input->nvars; var++)
+    {
+        /* Mean */
+        output[0][var] = output[0][var] / (double)input->nvectors;
+        /* Variance */
+        output[1][var] = (output[1][var] / (double)input->nvectors) 
+            - pow(output[0][var], 2);
+        /* Standard deviation */
+        output[1][var] = sqrt(output[1][var]);
+    }
+    return output;
+}
+
 void
 print_signals_matrix (Signals_matrix *input)
 {
@@ -98,13 +149,49 @@ main(int argc, const char *argv[])
         return 1;
     }
     Signals_matrix *matrix = read_data_file(filep);
-    if (matrix == NULL)
-        return 0;
     fclose(filep);
-    Signals_matrix *memory = memory_vector_selection(matrix, 72);
+    assert(matrix != NULL);
+
+    filep = fopen(argv[2], "r");
+    if (filep == NULL) 
+    {
+        fprintf(stderr, "ERROR: It is not possible to open the file %s.\n\n", argv[2]);
+        return 1;
+    }
+    Signals_matrix *testData = read_data_file(filep);
+    fclose(filep);
+    assert(testData != NULL);
+
+    double **statistics = calculate_mean_std(matrix);
+    /* Data scaling to zero mean and unit standard deviation. */
+    Signals_matrix *trainNormData = scale_data(matrix, statistics[0], statistics[1]);
+    Signals_matrix *testNormData = scale_data(testData, statistics[0], statistics[1]);
+
+    Signals_matrix *memory = memory_vector_selection(trainNormData, 300);
 //    print_signals_matrix(memory);
 
+    filep = fopen("out.txt", "w+");
+    double *prediction = MALLOC(double,matrix->nvars);
+    for (int query = 0; query < testData->nvectors; query++)
+    {
+        aakr_prediction(memory, .6, testNormData->vectors[query].data, prediction);
+        for (int var = 0; var < matrix->nvars; var++)
+        {
+            prediction[var] = prediction[var]*statistics[1][var] + statistics[0][var];
+            fprintf(filep, "%.9f\t", prediction[var]);
+        }
+        fprintf(filep, "\n");
+    }
+    fclose(filep);
+
+    free(prediction);
+    free(statistics[0]);
+    free(statistics[1]);
+    free(statistics);
     free_signals_matrix(matrix);
     free_signals_matrix(memory);
+    free_signals_matrix(testData);
+    free_signals_matrix(trainNormData);
+    free_signals_matrix(testNormData);
     return 0;
 }

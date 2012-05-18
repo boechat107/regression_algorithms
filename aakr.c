@@ -58,6 +58,16 @@ copyDoubleValues (double* orig, double* dest, int size)
  * Main functions
  * ----------------------------------------------------------------------------------------- 
  */
+Signals_matrix *
+signals_matrix_init (int nvars, int nvectors)
+{
+    Signals_matrix *output = MALLOC(Signals_matrix,1);
+    output->nvectors = 0;
+    output->nvars = nvars;
+    output->vectors = MALLOC(Signals_node,nvectors);
+    return output;
+}
+
 void
 free_signals_matrix (Signals_matrix *input)
 {
@@ -70,16 +80,22 @@ free_signals_matrix (Signals_matrix *input)
 }
 
 
-double*
-aakr_prediction (Signals_matrix* memory, double bandwidth, double* query)
+/**
+ *    \fn function header
+ *    \brief Predicts a query vector using the AAKR model.
+ *    \param Nome var description
+ *    \return A array of double values. Its size is the same of the query vector.
+ */
+void
+aakr_prediction (Signals_matrix* memory, double bandwidth, double* query, double *output)
 {
     double distances[memory->nvectors];
     double weights[memory->nvectors];
-    double *prediction = MALLOC(double,memory->nvars);
     double weights_sum = 0;
     int var;
     Signals_node *memory_vec;
     int vec = 0;
+    assert(output != NULL);
     /* Calculation of the vector of distances between the query and the memory vectors. */
     for (vec = 0; vec < memory->nvectors; vec++)
     {
@@ -96,16 +112,16 @@ aakr_prediction (Signals_matrix* memory, double bandwidth, double* query)
     /* Calculation of the prediction vector, the function's output. */
     for (var = 0; var < memory->nvars; var++) 
     {
-        prediction[var] = 0;
+        output[var] = 0;
         vec = 0;
         for (vec = 0; vec < memory->nvectors; vec++)
         {
             memory_vec = &memory->vectors[vec];
-            prediction[var] += weights[vec] * memory_vec->data[var];
+            output[var] += weights[vec] * memory_vec->data[var];
         }
-        prediction[var] = prediction[var] / weights_sum;
+        output[var] = output[var] / weights_sum;
     }
-    return prediction;
+//    return output;
 }
 
 
